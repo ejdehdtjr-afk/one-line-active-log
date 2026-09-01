@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -18,6 +19,7 @@ const STORAGE_KEY = 'daily-active-log-v2';
 const TIMEZONE = 'Asia/Seoul';
 const ITEM = '능동 작업시간';
 const UNIT = '분';
+const PLAN_TYPES = ['운동관련 계획', 'ALEPH 수업 관련 계획', '개인공부 관련 계획'] as const;
 
 type LogRecord = {
   id: string;
@@ -44,17 +46,17 @@ type Notice = { type: 'success' | 'error' | 'info'; text: string };
 const SAMPLE_RECORDS: LogRecord[] = [
   {
     id: 'sample-focus-001', date: '2026-08-31', timezone: TIMEZONE, item: ITEM,
-    value: 45, unit: UNIT, memo: '과제 기능 구현', tag: '개발', source: 'sample',
+    value: 45, unit: UNIT, memo: '러닝과 마무리 스트레칭', tag: '운동관련 계획', source: 'sample',
     createdAt: '2026-08-31T01:30:00.000Z', updatedAt: '2026-08-31T01:30:00.000Z',
   },
   {
     id: 'sample-focus-002', date: '2026-09-01', timezone: TIMEZONE, item: ITEM,
-    value: 70, unit: UNIT, memo: '문서 읽기와 정리', tag: '학습', source: 'sample',
+    value: 70, unit: UNIT, memo: 'ALEPH 수업 과제 정리', tag: 'ALEPH 수업 관련 계획', source: 'sample',
     createdAt: '2026-09-01T05:10:00.000Z', updatedAt: '2026-09-01T05:10:00.000Z',
   },
   {
     id: 'sample-focus-003', date: '2026-09-02', timezone: TIMEZONE, item: ITEM,
-    value: 35, unit: UNIT, memo: '경계값 검사', tag: '검증', source: 'sample',
+    value: 35, unit: UNIT, memo: '알고리즘 개념 복습', tag: '개인공부 관련 계획', source: 'sample',
     createdAt: '2026-09-02T02:20:00.000Z', updatedAt: '2026-09-02T02:20:00.000Z',
   },
 ];
@@ -63,7 +65,15 @@ const todayInSeoul = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date());
 
-const emptyForm = () => ({ date: todayInSeoul(), value: '', memo: '', tag: '학습' });
+const emptyForm = () => ({ date: todayInSeoul(), value: '', memo: '', tag: '개인공부 관련 계획' });
+
+function normalizePlanType(value: unknown) {
+  const tag = String(value ?? '');
+  if (PLAN_TYPES.includes(tag as (typeof PLAN_TYPES)[number])) return tag;
+  if (tag.includes('운동')) return '운동관련 계획';
+  if (tag.toUpperCase().includes('ALEPH') || tag.includes('수업')) return 'ALEPH 수업 관련 계획';
+  return '개인공부 관련 계획';
+}
 
 function isValidIsoDate(value: unknown): value is string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -113,7 +123,7 @@ function normalizeImported(input: unknown): { data: StoredData; migrated: boolea
     const converted: LogRecord = {
       id: String(item.id ?? ''), date: String(item.date ?? ''), timezone: TIMEZONE,
       item: ITEM, value: typeof item.value === 'number' ? item.value : Number.NaN,
-      unit: UNIT, memo: String(item.memo ?? ''), tag: version === 1 ? '미분류' : String(item.tag ?? '미분류'),
+      unit: UNIT, memo: String(item.memo ?? ''), tag: normalizePlanType(item.tag),
       source: item.source === 'user' ? 'user' : 'sample',
       createdAt: typeof item.createdAt === 'string' ? item.createdAt : now,
       updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : now,
@@ -203,13 +213,13 @@ export default function Home() {
         return;
       }
       const next = records.map((record) => record.id === editingId ? {
-        ...record, date: form.date, value, memo: form.memo.trim(), tag: form.tag.trim() || '미분류', updatedAt: now,
+        ...record, date: form.date, value, memo: form.memo.trim(), tag: normalizePlanType(form.tag), updatedAt: now,
       } : record);
       persistMutation(next, `“${target.memo}” 기록을 수정했습니다. 주간 요약도 다시 계산되었습니다.`);
     } else {
       const nextRecord: LogRecord = {
         id: crypto.randomUUID(), date: form.date, timezone: TIMEZONE, item: ITEM,
-        value, unit: UNIT, memo: form.memo.trim(), tag: form.tag.trim() || '미분류',
+        value, unit: UNIT, memo: form.memo.trim(), tag: normalizePlanType(form.tag),
         source: 'user', createdAt: now, updatedAt: now,
       };
       persistMutation([...records, nextRecord], `${formatDate(nextRecord.date)} 기록을 추가했습니다.`);
@@ -330,8 +340,8 @@ export default function Home() {
         <div className="mb-7 grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(310px,.55fr)] lg:items-end">
           <div>
             <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><Sparkles className="size-4" /> 6번째 과제 · 개인 기록기</p>
-            <h2 className="max-w-2xl text-3xl font-black tracking-[-0.045em] sm:text-5xl sm:leading-[1.08]">기다린 시간은 빼고,<br />집중한 시간만 기록해요.</h2>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">항목은 <strong className="text-foreground">{ITEM}</strong>, 단위는 <strong className="text-foreground">{UNIT}</strong>, 기준 시간대는 <strong className="text-foreground">{TIMEZONE}</strong>입니다. 실제 원자료는 서버로 전송되지 않습니다.</p>
+            <h2 className="max-w-2xl text-3xl font-black tracking-[-0.045em] sm:text-5xl sm:leading-[1.08]">운동·ALEPH·개인공부,<br />세 가지 계획을 기록해요.</h2>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">계획 유형을 고른 뒤 <strong className="text-foreground">{ITEM}</strong>을 <strong className="text-foreground">{UNIT}</strong> 단위로 남깁니다. 기준 시간대는 <strong className="text-foreground">{TIMEZONE}</strong>이며 실제 원자료는 서버로 전송되지 않습니다.</p>
           </div>
           <div className="rounded-[22px] border bg-card px-5 py-4 text-sm shadow-sm">
             <div className="flex items-start gap-3"><Info className="mt-0.5 size-4 shrink-0 text-primary" /><p className="leading-6"><strong>제출 전 확인</strong><br /><span className="text-muted-foreground">합성 기록으로 기능을 검증하세요. 실제 기록이 보이는 화면이나 파일은 공개 제출하지 마세요.</span></p></div>
@@ -353,9 +363,9 @@ export default function Home() {
               <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
                 <div className="space-y-2"><Label htmlFor="date">날짜 *</Label><Input id="date" type="date" required value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} className="h-11" /></div>
                 <div className="space-y-2"><Label htmlFor="value">능동 작업시간 (분) *</Label><Input id="value" type="number" min="1" max="1440" step="1" inputMode="numeric" required placeholder="예: 45" value={form.value} onChange={(event) => setForm({ ...form, value: event.target.value })} className="h-11" /></div>
-                <div className="space-y-2"><Label htmlFor="tag">태그</Label><Input id="tag" maxLength={20} placeholder="학습, 개발, 운동 등" value={form.tag} onChange={(event) => setForm({ ...form, tag: event.target.value })} className="h-11" /></div>
+                <div className="space-y-2"><Label htmlFor="tag">계획 유형 *</Label><NativeSelect id="tag" required value={form.tag} onChange={(event) => setForm({ ...form, tag: event.target.value })} className="w-full [&_select]:h-11">{PLAN_TYPES.map((plan) => <NativeSelectOption key={plan} value={plan}>{plan}</NativeSelectOption>)}</NativeSelect></div>
                 <div className="space-y-2"><Label htmlFor="timezone">기준 시간대</Label><Input id="timezone" value={TIMEZONE} disabled className="h-11" /></div>
-                <div className="space-y-2 sm:col-span-2"><Label htmlFor="memo">메모 *</Label><Textarea id="memo" required maxLength={120} placeholder="무엇에 집중했나요?" value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} className="min-h-20 resize-none" /></div>
+                <div className="space-y-2 sm:col-span-2"><Label htmlFor="memo">오늘 할 일 / 한 일 *</Label><Textarea id="memo" required maxLength={120} placeholder="계획하거나 실행한 내용을 적어주세요." value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} className="min-h-20 resize-none" /></div>
                 <div className="flex gap-2 sm:col-span-2">
                   <Button className="h-11 flex-1 rounded-xl" type="submit">{editingId ? <><Save /> 수정 저장</> : <><Plus /> 기록 추가하기</>}</Button>
                   {editingId && <Button className="h-11 rounded-xl" variant="outline" type="button" onClick={resetForm}><X /> 취소</Button>}
@@ -370,7 +380,7 @@ export default function Home() {
               </div>
               {sortedRecords.length ? (
                 <Table>
-                  <TableHeader><TableRow><TableHead>날짜 / 태그</TableHead><TableHead>기록</TableHead><TableHead className="text-right">시간</TableHead><TableHead><span className="sr-only">작업</span></TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>날짜 / 계획</TableHead><TableHead>기록</TableHead><TableHead className="text-right">시간</TableHead><TableHead><span className="sr-only">작업</span></TableHead></TableRow></TableHeader>
                   <TableBody>
                     {sortedRecords.map((record) => (
                       <TableRow key={record.id}>
@@ -437,7 +447,7 @@ export default function Home() {
             <summary className="flex cursor-pointer list-none items-center justify-between font-bold">과제 제출용 AI 3줄 <ChevronRight className="size-4" /></summary>
             <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
               <p className="rounded-xl bg-background p-4"><strong className="mb-1 block">AI에게 맡긴 일</strong><span className="text-muted-foreground">기록기 화면과 CRUD·백업·검사 기능의 첫 구현을 맡겼다.</span></p>
-              <p className="rounded-xl bg-background p-4"><strong className="mb-1 block">내가 판단한 일</strong><span className="text-muted-foreground">기록 항목을 능동 작업시간으로, 단위를 분으로 정했다.</span></p>
+              <p className="rounded-xl bg-background p-4"><strong className="mb-1 block">내가 판단한 일</strong><span className="text-muted-foreground">계획을 운동, ALEPH 수업, 개인공부 세 유형으로 나눴다.</span></p>
               <p className="rounded-xl bg-background p-4"><strong className="mb-1 block">AI 말을 안 들은 일</strong><span className="text-muted-foreground">실제 기록은 공개하지 않고 내 PC에만 남기기로 했다.</span></p>
             </div>
           </details>
