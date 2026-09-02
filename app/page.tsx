@@ -413,6 +413,15 @@ export default function Home() {
               <p className="mt-4 text-xs leading-5 text-muted-foreground">합성 데이터는 제외합니다. 서로 다른 실제 날짜에 직접 추가한 기록만 하루로 계산합니다.</p>
             </div>
 
+            <div className="rounded-[24px] border border-emerald-200 bg-emerald-50/70 p-5">
+              <div className="flex items-center justify-between"><div><p className="font-bold text-emerald-950">한 가지 개선 기록</p><p className="mt-1 text-xs text-emerald-700">사용자 요청을 반영한 개선 완료</p></div><CheckCircle2 className="size-5 text-emerald-700" /></div>
+              <div className="mt-4 space-y-3 text-xs leading-5">
+                <div className="rounded-xl bg-white/70 p-3"><strong className="block text-emerald-950">개선 전 불편</strong><span className="text-emerald-800/80">자유 입력 태그는 표현이 제각각이라 계획을 고를 때마다 다시 입력해야 했습니다.</span></div>
+                <div className="rounded-xl bg-white/70 p-3"><strong className="block text-emerald-950">선택한 수정</strong><span className="text-emerald-800/80">운동관련 계획, ALEPH 수업 관련 계획, 개인공부 관련 계획을 고정 선택 항목으로 바꿨습니다.</span></div>
+                <div className="flex items-center gap-2 font-semibold text-emerald-800"><Check className="size-4" />기존 날짜·값·단위는 그대로 보존</div>
+              </div>
+            </div>
+
             <div className="rounded-[24px] border bg-card p-5">
               <div className="flex items-center justify-between"><div><p className="font-bold">백업과 복원</p><p className="mt-1 text-xs text-muted-foreground">현재 자료 형식: v2</p></div><Save className="size-5 text-primary" /></div>
               <div className="mt-4 grid grid-cols-2 gap-2"><Button variant="outline" onClick={exportJson}><Download /> 내보내기</Button><Button variant="outline" onClick={() => importRef.current?.click()}><Upload /> 가져오기</Button></div>
@@ -439,6 +448,19 @@ export default function Home() {
               ['무엇이 보이면 통과인가요', '한 행과 주간 합계가 함께 바뀌고, 검사 통과 문구와 JSON 파일이 보입니다.'],
               ['안 될 때', '빨간 안내문에서 오류 이유를 확인하고 합성 기록 복원 후 다시 시도합니다.'],
             ].map(([title, body], index) => <div key={title} className="rounded-2xl bg-secondary/60 p-4"><span className="mb-3 grid size-7 place-items-center rounded-full bg-card text-xs font-black text-primary shadow-sm">{index + 1}</span><p className="text-sm font-bold">{title}</p><p className="mt-2 text-xs leading-5 text-muted-foreground">{body}</p></div>)}
+          </div>
+        </section>
+
+        <section className="mt-4 rounded-[28px] border bg-card p-5 sm:p-7">
+          <div className="mb-5 flex items-center gap-3"><span className="grid size-10 place-items-center rounded-2xl bg-emerald-100 text-emerald-800"><ShieldCheck className="size-5" /></span><div><h3 className="font-bold">구현 점검 결과</h3><p className="mt-1 text-xs text-muted-foreground">자동으로 구현할 수 있는 기능과 실제 사용이 필요한 항목을 구분했습니다.</p></div></div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              ['기록 CRUD', '추가·조회·수정·삭제'],
+              ['저장·복원', '새로고침·JSON·전체 삭제'],
+              ['형식 변환', 'v1 → v2 반복 실행 안전'],
+              ['오류 검사', '경계·누락·중복·잘못된 값'],
+            ].map(([title, body]) => <div key={title} className="rounded-2xl bg-emerald-50 p-4"><CheckCircle2 className="mb-3 size-5 text-emerald-700" /><p className="text-sm font-bold text-emerald-950">{title}</p><p className="mt-1 text-xs leading-5 text-emerald-800/75">{body}</p></div>)}
+            <div className={`rounded-2xl p-4 ${realDays >= 5 ? 'bg-emerald-50' : 'bg-amber-50'}`}>{realDays >= 5 ? <CheckCircle2 className="mb-3 size-5 text-emerald-700" /> : <Clock3 className="mb-3 size-5 text-amber-700" />}<p className={`text-sm font-bold ${realDays >= 5 ? 'text-emerald-950' : 'text-amber-950'}`}>실제 5일 사용</p><p className={`mt-1 text-xs leading-5 ${realDays >= 5 ? 'text-emerald-800/75' : 'text-amber-800/80'}`}>{realDays >= 5 ? '서로 다른 실제 날짜 5일 완료' : `사용자 기록 필요 · 현재 ${realDays}/5일`}</p></div>
           </div>
         </section>
 
