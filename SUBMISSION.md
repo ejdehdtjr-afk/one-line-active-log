@@ -26,9 +26,11 @@ T07은 위 T06 commit을 직접 조상으로 둔다. 같은 저장소의 T06 결
 - 가입: `app/api/auth/signup/route.ts` → 입력 검증 → `lib/auth.ts` 비밀번호 해시 → `users`, 기본 `experiments`, `sessions` 저장.
 - 로그인: `app/api/auth/login/route.ts` → 이메일 조회 → `verifyPassword` → 새 세션과 쿠키 발급.
 - 로그아웃: `app/api/auth/logout/route.ts` → 현재 토큰의 해시로 서버 세션 삭제 → 쿠키 만료.
-- 자료 조회: `app/api/experiment/route.ts` → `requireApiUser` → 현재 사용자의 `user_id`로 실험·5일 기록·T06 이전 기록만 조회.
-- 자료 생성·수정·삭제: `app/api/records/route.ts`, `app/api/records/[id]/route.ts`에서 모든 쿼리에 로그인 사용자의 `user_id`를 함께 건다. URL의 id만으로 접근하지 않는다.
-- T06 이전: `app/api/migrate-t06/route.ts`에서 실제 사용자 입력만 현재 계정 소유로 저장한다.
+- 다이어리 자료 조회·생성: `app/api/diary/route.ts` → `requireApiUser` → 현재 사용자의 `user_id`로 T06 다이어리 기록만 조회하거나 생성한다.
+- 다이어리 자료 수정·삭제: `app/api/diary/[id]/route.ts`에서 URL의 id만 믿지 않고 `legacy_id`와 로그인 사용자의 `user_id`를 함께 건다.
+- 5일 실험 자료 조회: `app/api/experiment/route.ts` → `requireApiUser` → 현재 사용자의 `user_id`로 실험·5일 기록만 조회한다.
+- 5일 자료 생성·수정·삭제: `app/api/records/route.ts`, `app/api/records/[id]/route.ts`에서 모든 쿼리에 로그인 사용자의 `user_id`를 함께 건다.
+- T06 이전: `app/api/migrate-t06/route.ts`에서 실제 사용자 입력만 현재 계정 소유로 저장한다. 로그인 뒤 첫 화면의 다이어리 목록에서 이전 결과를 그대로 조회·수정·삭제할 수 있다.
 
 ### ④ 안 열리는 것을 확인한 기록
 
@@ -75,7 +77,7 @@ T07은 위 T06 commit을 직접 조상으로 둔다. 같은 저장소의 T06 결
 
 ### ② 세 단계 안에 무엇을 하나요
 
-`계정 만들기` → 이메일·8자 이상 비밀번호 입력 → 로그인 뒤 `5일 기록` 화면 확인.
+`계정 만들기` → 이메일·8자 이상 비밀번호 입력 → 로그인 뒤 `오늘의 한 줄 기록` 다이어리 화면 확인 → `5일 실험` 메뉴 열기.
 
 ### ③ 무엇이 보이면 통과인가요
 

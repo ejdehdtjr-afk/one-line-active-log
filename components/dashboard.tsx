@@ -2,20 +2,28 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Activity,
   CalendarDays,
   Check,
+  Clock3,
   Download,
   FileText,
   LogOut,
   Pencil,
   Plus,
+  Save,
   Settings2,
   ShieldCheck,
   Trash2,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from '@/components/ui/native-select';
 
 type Experiment = {
   question: string;
@@ -39,27 +47,61 @@ type RecordRow = {
   note: string;
   phase: string;
 };
+type LegacyRecord = {
+  legacy_id: string;
+  record_date: string;
+  value: number;
+  unit: string;
+  memo: string;
+  tag: string;
+};
 type Data = {
   user: { email: string };
   experiment: Experiment;
   records: RecordRow[];
-  legacyRecords: Array<{
-    legacy_id: string;
-    record_date: string;
-    value: number;
-    unit: string;
-    memo: string;
-    tag: string;
-  }>;
+  legacyRecords: LegacyRecord[];
 };
-type Tab = 'overview' | 'rules' | 'guide' | 'account';
+type Tab = 'diary' | 'experiment' | 'rules' | 'guide' | 'account';
 
 const nav: { id: Tab; label: string; icon: typeof CalendarDays }[] = [
-  { id: 'overview', label: '5일 기록', icon: CalendarDays },
+  { id: 'diary', label: '오늘의 한 줄 기록', icon: Activity },
+  { id: 'experiment', label: '5일 실험', icon: CalendarDays },
   { id: 'rules', label: '계산 규칙', icon: Settings2 },
   { id: 'guide', label: '인증 설명서', icon: FileText },
   { id: 'account', label: '내 계정', icon: ShieldCheck },
 ];
+const DIARY_TAGS = [
+  '운동관련 계획',
+  'ALEPH 수업 관련 계획',
+  '개인공부 관련 계획',
+];
+
+function todayInSeoul() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function getWeekRange() {
+  const reference = new Date(`${todayInSeoul()}T12:00:00+09:00`);
+  const monday = new Date(reference);
+  monday.setDate(reference.getDate() - ((reference.getDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const iso = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return { start: iso(monday), end: iso(sunday) };
+}
+
+function minutesLabel(value: number) {
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  if (!hours) return `${minutes}분`;
+  return `${hours}시간${minutes ? ` ${minutes}분` : ''}`;
+}
 
 function formatSeoulDateTime(value: string | null) {
   if (!value) return '—';
@@ -72,7 +114,7 @@ function formatSeoulDateTime(value: string | null) {
 
 export function Dashboard() {
   const [data, setData] = useState<Data | null>(null);
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>('diary');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [date, setDate] = useState('');
@@ -81,6 +123,13 @@ export function Dashboard() {
   const [afterRule, setAfterRule] = useState('');
   const [reason, setReason] = useState('');
   const [confirmation, setConfirmation] = useState('');
+  const [diaryForm, setDiaryForm] = useState({
+    date: todayInSeoul(),
+    value: '',
+    memo: '',
+    tag: '개인공부 관련 계획',
+  });
+  const [editingDiaryId, setEditingDiaryId] = useState<string | null>(null);
   const [legacyPending, setLegacyPending] = useState<Record<string, unknown>[]>(
     [],
   );
@@ -133,6 +182,23 @@ export function Dashboard() {
       after: average(after),
     };
   }, [data]);
+  const diaryStats = useMemo(() => {
+    const records = data?.legacyRecords ?? [];
+    const range = getWeekRange();
+    const weekly = records.filter(
+      (record) =>
+        record.record_date >= range.start && record.record_date <= range.end,
+    );
+    return {
+      range,
+      weekly,
+      total: weekly.reduce((sum, record) => sum + Number(record.value), 0),
+      days: new Set(records.map((record) => record.record_date)).size,
+      sorted: [...records].sort((a, b) =>
+        b.record_date.localeCompare(a.record_date),
+      ),
+    };
+  }, [data]);
 
   async function request(url: string, options: RequestInit) {
     setBusy(true);
@@ -166,6 +232,39 @@ export function Dashboard() {
       setValue('');
       setNote('');
     }
+  }
+  function resetDiaryForm() {
+    setEditingDiaryId(null);
+    setDiaryForm({
+      date: todayInSeoul(),
+      value: '',
+      memo: '',
+      tag: '개인공부 관련 계획',
+    });
+  }
+  async function saveDiary(event: React.FormEvent) {
+    event.preventDefault();
+    const url = editingDiaryId ? `/api/diary/${editingDiaryId}` : '/api/diary';
+    if (
+      await request(url, {
+        method: editingDiaryId ? 'PUT' : 'POST',
+        body: JSON.stringify({
+          ...diaryForm,
+          value: Number(diaryForm.value),
+        }),
+      })
+    )
+      resetDiaryForm();
+  }
+  function startDiaryEdit(record: LegacyRecord) {
+    setEditingDiaryId(record.legacy_id);
+    setDiaryForm({
+      date: record.record_date,
+      value: String(record.value),
+      memo: record.memo,
+      tag: record.tag,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   async function changeRule(event: React.FormEvent) {
     event.preventDefault();
@@ -211,7 +310,7 @@ export function Dashboard() {
             <span className="grid size-9 place-items-center rounded-full bg-amber-300 text-ink">
               <Check className="size-5" />
             </span>
-            FIVE / FIVE
+            오늘의 한 줄 기록
           </div>
           <Button
             variant="ghost"
@@ -270,7 +369,7 @@ export function Dashboard() {
           </div>
         )}
 
-        {tab === 'overview' && (
+        {tab === 'diary' && (
           <>
             {legacyPending.length > 0 && (
               <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
@@ -279,8 +378,8 @@ export function Dashboard() {
                     T06 실제 입력 기록 {legacyPending.length}건을 찾았습니다.
                   </b>
                   <p className="mt-1 text-xs text-amber-800">
-                    5일 실험과 섞지 않고 이 계정의 T06 보관 기록으로 그대로
-                    옮깁니다.
+                    이 계정의 다이어리로 옮긴 뒤 목록에서 계속 수정·삭제할 수
+                    있습니다.
                   </p>
                 </div>
                 <Button
@@ -301,6 +400,272 @@ export function Dashboard() {
                 </Button>
               </div>
             )}
+            <header className="mb-8">
+              <p className="text-sm font-semibold text-emerald-700">
+                6번째 과제에서 이어온 잠긴 다이어리
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-[-.04em] sm:text-4xl">
+                오늘의 한 줄 기록
+              </h1>
+              <p className="mt-3 max-w-2xl text-muted-foreground">
+                운동·ALEPH 수업·개인공부의 능동 작업시간을 분 단위로 기록합니다.
+                모든 기록은 로그인한 내 계정에만 보입니다.
+              </p>
+            </header>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,.55fr)]">
+              <section className="space-y-6">
+                <form
+                  onSubmit={saveDiary}
+                  className="rounded-2xl border bg-card p-5 sm:p-6"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="font-semibold">
+                        {editingDiaryId
+                          ? '다이어리 기록 수정'
+                          : '새 다이어리 기록'}
+                      </h2>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        저장하면 목록과 이번 주 합계에 바로 반영됩니다.
+                      </p>
+                    </div>
+                    {editingDiaryId ? (
+                      <Pencil className="size-5 text-amber-700" />
+                    ) : (
+                      <Plus className="size-5 text-emerald-700" />
+                    )}
+                  </div>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                    <label className="text-sm font-medium">
+                      날짜
+                      <Input
+                        required
+                        type="date"
+                        max={todayInSeoul()}
+                        className="mt-2 h-11"
+                        value={diaryForm.date}
+                        onChange={(event) =>
+                          setDiaryForm({
+                            ...diaryForm,
+                            date: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      능동 작업시간 (분)
+                      <Input
+                        required
+                        type="number"
+                        min="1"
+                        max="1440"
+                        step="1"
+                        className="mt-2 h-11"
+                        value={diaryForm.value}
+                        onChange={(event) =>
+                          setDiaryForm({
+                            ...diaryForm,
+                            value: event.target.value,
+                          })
+                        }
+                        placeholder="예: 45"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      계획 유형
+                      <NativeSelect
+                        className="mt-2 w-full [&_select]:h-11"
+                        value={diaryForm.tag}
+                        onChange={(event) =>
+                          setDiaryForm({
+                            ...diaryForm,
+                            tag: event.target.value,
+                          })
+                        }
+                      >
+                        {DIARY_TAGS.map((tag) => (
+                          <NativeSelectOption key={tag} value={tag}>
+                            {tag}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </label>
+                    <label className="text-sm font-medium">
+                      기준 시간대
+                      <Input
+                        className="mt-2 h-11"
+                        value="Asia/Seoul"
+                        disabled
+                      />
+                    </label>
+                    <label className="text-sm font-medium sm:col-span-2">
+                      오늘 할 일 / 한 일
+                      <Textarea
+                        required
+                        maxLength={120}
+                        className="mt-2 min-h-20"
+                        value={diaryForm.memo}
+                        onChange={(event) =>
+                          setDiaryForm({
+                            ...diaryForm,
+                            memo: event.target.value,
+                          })
+                        }
+                        placeholder="계획하거나 실행한 내용을 적어 주세요."
+                      />
+                    </label>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <Button disabled={busy}>
+                      {editingDiaryId ? <Save /> : <Plus />}
+                      {editingDiaryId ? '수정 저장' : '기록 추가'}
+                    </Button>
+                    {editingDiaryId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={resetDiaryForm}
+                      >
+                        <X /> 취소
+                      </Button>
+                    )}
+                  </div>
+                </form>
+
+                <div className="overflow-hidden rounded-2xl border bg-card">
+                  <div className="border-b px-5 py-4">
+                    <h2 className="font-semibold">
+                      전체 다이어리 기록{' '}
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {data.legacyRecords.length}건
+                      </span>
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      T06에서 옮긴 기록과 여기서 새로 쓴 기록을 함께 보여
+                      줍니다.
+                    </p>
+                  </div>
+                  {diaryStats.sorted.length === 0 ? (
+                    <p className="px-5 py-12 text-center text-sm text-muted-foreground">
+                      아직 다이어리 기록이 없습니다. 위에서 첫 기록을 남겨
+                      보세요.
+                    </p>
+                  ) : (
+                    diaryStats.sorted.map((record) => (
+                      <div
+                        key={record.legacy_id}
+                        className="grid grid-cols-[92px_1fr_78px] items-center gap-3 border-b px-5 py-4 last:border-0 sm:grid-cols-[120px_1fr_90px_82px]"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {record.record_date}
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted-foreground sm:hidden">
+                            {record.tag}
+                          </p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {record.memo}
+                          </p>
+                          <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
+                            {record.tag}
+                          </p>
+                        </div>
+                        <b className="text-right text-sm">
+                          {record.value} <span className="font-normal">분</span>
+                        </b>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="다이어리 기록 수정"
+                            onClick={() => startDiaryEdit(record)}
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label="다이어리 기록 삭제"
+                            disabled={busy}
+                            onClick={() => {
+                              if (
+                                window.confirm('이 다이어리 기록을 삭제할까요?')
+                              )
+                                void request(`/api/diary/${record.legacy_id}`, {
+                                  method: 'DELETE',
+                                });
+                            }}
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+              <aside className="space-y-4">
+                <div className="rounded-2xl bg-ink p-6 text-white">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-400">
+                      이번 주 요약
+                    </p>
+                    <Clock3 className="size-4 text-amber-300" />
+                  </div>
+                  <p className="mt-3 text-4xl font-bold">
+                    {diaryStats.total}
+                    <span className="ml-1 text-base font-medium text-slate-300">
+                      분
+                    </span>
+                  </p>
+                  <p className="mt-2 text-sm text-slate-300">
+                    {minutesLabel(diaryStats.total)} ·{' '}
+                    {diaryStats.weekly.length}건
+                  </p>
+                  <p className="mt-5 border-t border-white/15 pt-4 text-xs text-slate-400">
+                    {diaryStats.range.start} — {diaryStats.range.end} · 월요일
+                    시작
+                  </p>
+                </div>
+                <div className="rounded-2xl border bg-card p-5">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-semibold">5일 실험으로 이어가기</h2>
+                    <span className="text-sm font-bold text-emerald-700">
+                      {data.records.length}/5
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    이 잠긴 다이어리를 실제로 사용한 뒤, 같은 지표·단위·계산
+                    규칙으로 5일을 비교합니다.
+                  </p>
+                  <Button
+                    className="mt-5 w-full"
+                    onClick={() => setTab('experiment')}
+                  >
+                    5일 실험 열기
+                  </Button>
+                </div>
+                <div className="rounded-2xl border bg-card p-5">
+                  <p className="text-sm font-semibold">내 실제 기록일</p>
+                  <p className="mt-2 text-2xl font-semibold">
+                    {diaryStats.days}일
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    다이어리에 저장된 서로 다른 날짜만 셉니다. 임의 데이터는
+                    자동으로 만들지 않습니다.
+                  </p>
+                </div>
+              </aside>
+            </div>
+          </>
+        )}
+
+        {tab === 'experiment' && (
+          <>
             <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-emerald-700">
@@ -462,6 +827,37 @@ export function Dashboard() {
                       {data.records.length + 1}일차 기록 추가
                     </h2>
                   </div>
+                  {data.legacyRecords.length > 0 && (
+                    <label className="mt-5 block text-xs text-slate-300">
+                      다이어리 기록 불러오기 (선택)
+                      <NativeSelect
+                        className="mt-2 w-full bg-white text-ink [&_select]:h-11"
+                        defaultValue=""
+                        onChange={(event) => {
+                          const record = data.legacyRecords.find(
+                            (item) => item.legacy_id === event.target.value,
+                          );
+                          if (!record) return;
+                          setDate(record.record_date);
+                          setValue(String(record.value));
+                          setNote(record.memo);
+                        }}
+                      >
+                        <NativeSelectOption value="">
+                          직접 입력하기
+                        </NativeSelectOption>
+                        {diaryStats.sorted.map((record) => (
+                          <NativeSelectOption
+                            key={record.legacy_id}
+                            value={record.legacy_id}
+                          >
+                            {record.record_date} · {record.value}분 ·{' '}
+                            {record.memo}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </label>
+                  )}
                   <div className="mt-5 grid gap-4 sm:grid-cols-[180px_160px_1fr_auto]">
                     <label className="text-xs text-slate-300">
                       실제 날짜
@@ -536,9 +932,9 @@ export function Dashboard() {
                   파일 하나로 내보내기
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  질문, 계산 규칙, 규칙 변경, 5일 기록을 JSON 파일 하나로
-                  받습니다. T06에서 옮긴 {data.legacyRecords.length}건도 함께
-                  들어가며 비밀번호와 세션은 포함되지 않습니다.
+                  T06에서 이어온 다이어리 {data.legacyRecords.length}건과 질문,
+                  계산 규칙, 규칙 변경, 5일 기록을 JSON 파일 하나로 받습니다.
+                  비밀번호와 세션은 포함되지 않습니다.
                 </p>
                 <Button
                   className="mt-6"
@@ -731,7 +1127,7 @@ function Guide() {
     ],
     [
       '③ 어디를 어떻게 고쳤나',
-      '가입은 /api/auth/signup, 로그인은 /api/auth/login, 로그아웃은 /api/auth/logout을 지납니다. 자료 조회는 /api/experiment에서 세션 확인 뒤 user_id 조건으로 실행합니다. 수정·삭제도 URL의 id만 믿지 않고 항상 id와 user_id를 함께 검사합니다.',
+      '가입은 /api/auth/signup, 로그인은 /api/auth/login, 로그아웃은 /api/auth/logout을 지납니다. T06 다이어리의 조회·추가·수정·삭제는 /api/diary를 지나고, 5일 실험 조회는 /api/experiment를 지납니다. 모든 자료 요청은 세션 확인 뒤 URL의 id만 믿지 않고 항상 user_id를 함께 검사합니다.',
     ],
     [
       '④ 안 열리는 것을 확인한 기록',

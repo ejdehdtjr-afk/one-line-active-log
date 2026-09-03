@@ -78,6 +78,73 @@ try {
   );
   await expectStatus('readAnonymousDenied', await call('/api/experiment'), 401);
 
+  const diaryCreate = await expectStatus(
+    'diaryCreateOwn',
+    await call('/api/diary', {
+      method: 'POST',
+      cookie: cookieA,
+      body: {
+        date: '2026-08-25',
+        value: 60,
+        memo: '다이어리 소유권 검증 기록',
+        tag: '개인공부 관련 계획',
+      },
+    }),
+    201,
+  );
+  const diaryId = (await diaryCreate.json()).id;
+  const diaryRead = await expectStatus(
+    'diaryReadOwn',
+    await call('/api/diary', { cookie: cookieA }),
+    200,
+  );
+  const diaryPayload = await diaryRead.json();
+  if (
+    diaryPayload.records.length !== 1 ||
+    diaryPayload.records[0].legacy_id !== diaryId
+  )
+    throw new Error('own diary list mismatch');
+  const diaryReadB = await expectStatus(
+    'diaryReadOtherIsEmpty',
+    await call('/api/diary', { cookie: cookieB }),
+    200,
+  );
+  if ((await diaryReadB.json()).records.length !== 0)
+    throw new Error('other account can see diary data');
+  await expectStatus(
+    'diaryUpdateOtherDenied',
+    await call(`/api/diary/${diaryId}`, {
+      method: 'PUT',
+      cookie: cookieB,
+      body: {
+        date: '2026-08-25',
+        value: 999,
+        memo: '타인 수정 시도',
+        tag: '개인공부 관련 계획',
+      },
+    }),
+    404,
+  );
+  await expectStatus(
+    'diaryDeleteOtherDenied',
+    await call(`/api/diary/${diaryId}`, { method: 'DELETE', cookie: cookieB }),
+    404,
+  );
+  await expectStatus(
+    'diaryUpdateOwn',
+    await call(`/api/diary/${diaryId}`, {
+      method: 'PUT',
+      cookie: cookieA,
+      body: {
+        date: '2026-08-25',
+        value: 65,
+        memo: '본인 다이어리 수정 확인',
+        tag: '개인공부 관련 계획',
+      },
+    }),
+    200,
+  );
+
   const dates = [
     '2026-08-25',
     '2026-08-26',
@@ -214,6 +281,11 @@ try {
   results.exportIsJson = (
     exportResponse.headers.get('content-type') ?? ''
   ).includes('application/json');
+  await expectStatus(
+    'diaryDeleteOwn',
+    await call(`/api/diary/${diaryId}`, { method: 'DELETE', cookie: cookieA }),
+    200,
+  );
 
   await expectStatus(
     'logout',
