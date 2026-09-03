@@ -516,7 +516,7 @@ export function Dashboard() {
                     </label>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <Button disabled={busy}>
+                    <Button type="submit" disabled={busy}>
                       {editingDiaryId ? <Save /> : <Plus />}
                       {editingDiaryId ? '수정 저장' : '기록 추가'}
                     </Button>
@@ -811,7 +811,7 @@ export function Dashboard() {
                     />
                   </label>
                 </div>
-                <Button disabled={busy} className="mt-4">
+                <Button type="submit" disabled={busy} className="mt-4">
                   규칙 변경 기록 남기기
                 </Button>
               </form>
@@ -891,6 +891,7 @@ export function Dashboard() {
                       />
                     </label>
                     <Button
+                      type="submit"
                       disabled={busy}
                       className="mt-6 h-11 bg-amber-300 text-ink hover:bg-amber-200"
                     >
@@ -1082,7 +1083,7 @@ function Rules({
               )}
             </label>
           ))}
-          <Button disabled={busy} className="mt-2 w-fit">
+          <Button type="submit" disabled={busy} className="mt-2 w-fit">
             기준 저장하기
           </Button>
         </form>
