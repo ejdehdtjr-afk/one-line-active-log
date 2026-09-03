@@ -40,7 +40,9 @@ async function request<T>(
     method: options.method ?? 'GET',
     headers: {
       apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
+      ...(serviceRoleKey.startsWith('eyJ')
+        ? { Authorization: `Bearer ${serviceRoleKey}` }
+        : {}),
       'Content-Type': 'application/json',
       Accept: 'application/json',
       ...(options.prefer ? { Prefer: options.prefer } : {}),
