@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { db, ensureSchema, type User } from './database';
+import { deleteRows, firstRow, insertRows, type User } from './database';
 
 export const SESSION_COOKIE = 'fivefive_session';
 const ITERATIONS = 210_000;
@@ -8,6 +8,13 @@ function bytesToBase64(bytes: Uint8Array) {
   let value = '';
   for (const byte of bytes) value += String.fromCharCode(byte);
   return btoa(value);
+}
+
+function randomSessionToken() {
+  return bytesToBase64(crypto.getRandomValues(new Uint8Array(32)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 function base64ToBytes(value: string) {
@@ -70,47 +77,43 @@ export async function verifyPassword(password: string, stored: string) {
 }
 
 export async function createSession(userId: string) {
-  await ensureSchema();
-  const raw = bytesToBase64(crypto.getRandomValues(new Uint8Array(32)));
+  const raw = randomSessionToken();
   const tokenHash = await digest(raw);
   const now = new Date();
   const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  await db()
-    .prepare(
-      'INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)',
-    )
-    .bind(
-      crypto.randomUUID(),
-      userId,
-      tokenHash,
-      expires.toISOString(),
-      now.toISOString(),
-    )
-    .run();
+  await insertRows('sessions', {
+    id: crypto.randomUUID(),
+    user_id: userId,
+    token_hash: tokenHash,
+    expires_at: expires.toISOString(),
+    created_at: now.toISOString(),
+  });
   return { raw, expires };
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  await ensureSchema();
   const raw = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!raw) return null;
-  const row = await db()
-    .prepare(`SELECT users.id, users.email, users.created_at
-    FROM sessions JOIN users ON users.id = sessions.user_id
-    WHERE sessions.token_hash = ? AND sessions.expires_at > ?`)
-    .bind(await digest(raw), new Date().toISOString())
-    .first<User>();
-  return row ?? null;
+  try {
+    const session = await firstRow<{ user_id: string }>('sessions', {
+      select: 'user_id',
+      token_hash: `eq.${await digest(raw)}`,
+      expires_at: `gt.${new Date().toISOString()}`,
+    });
+    if (!session) return null;
+    return await firstRow<User>('users', {
+      select: 'id,email,created_at',
+      id: `eq.${session.user_id}`,
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function deleteCurrentSession() {
-  await ensureSchema();
   const raw = (await cookies()).get(SESSION_COOKIE)?.value;
   if (raw)
-    await db()
-      .prepare('DELETE FROM sessions WHERE token_hash = ?')
-      .bind(await digest(raw))
-      .run();
+    await deleteRows('sessions', { token_hash: `eq.${await digest(raw)}` });
 }
 
 export function sessionCookie(raw: string, expires: Date) {

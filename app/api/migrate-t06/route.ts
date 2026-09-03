@@ -1,5 +1,5 @@
 import { requireApiUser } from '@/lib/auth';
-import { db } from '@/lib/database';
+import { databaseErrorResponse, upsertRows } from '@/lib/database';
 
 type LegacyRecord = {
   id?: unknown;
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   const seen = new Set<string>();
-  const prepared: D1PreparedStatement[] = [];
+  const rows: Record<string, unknown>[] = [];
   for (const item of body.records) {
     const legacyId = typeof item.id === 'string' ? item.id : '';
     const date = typeof item.date === 'string' ? item.date : '';
@@ -47,27 +47,26 @@ export async function POST(request: Request) {
       typeof item.createdAt === 'string'
         ? item.createdAt
         : new Date().toISOString();
-    const updatedAt =
-      typeof item.updatedAt === 'string' ? item.updatedAt : createdAt;
-    prepared.push(
-      db()
-        .prepare(
-          `INSERT OR IGNORE INTO legacy_records (id, user_id, legacy_id, record_date, value, unit, memo, tag, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          crypto.randomUUID(),
-          auth.user.id,
-          legacyId,
-          date,
-          value,
-          typeof item.unit === 'string' ? item.unit : '분',
-          typeof item.memo === 'string' ? item.memo : '',
-          typeof item.tag === 'string' ? item.tag : '개인공부 관련 계획',
-          createdAt,
-          updatedAt,
-        ),
-    );
+    rows.push({
+      id: crypto.randomUUID(),
+      user_id: auth.user.id,
+      legacy_id: legacyId,
+      record_date: date,
+      value,
+      unit: typeof item.unit === 'string' ? item.unit : '분',
+      memo: typeof item.memo === 'string' ? item.memo : '',
+      tag: typeof item.tag === 'string' ? item.tag : '개인공부 관련 계획',
+      created_at: createdAt,
+      updated_at:
+        typeof item.updatedAt === 'string' ? item.updatedAt : createdAt,
+    });
   }
-  if (prepared.length) await db().batch(prepared);
-  return Response.json({ ok: true, imported: prepared.length });
+  try {
+    const imported = rows.length
+      ? await upsertRows('legacy_records', rows, 'user_id,legacy_id')
+      : [];
+    return Response.json({ ok: true, imported: imported.length });
+  } catch (error) {
+    return databaseErrorResponse(error);
+  }
 }

@@ -1,5 +1,10 @@
 import { requireApiUser } from '@/lib/auth';
-import { db } from '@/lib/database';
+import {
+  databaseErrorResponse,
+  firstRow,
+  insertRows,
+  selectRows,
+} from '@/lib/database';
 
 function seoulToday() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -33,50 +38,48 @@ export async function POST(request: Request) {
       { error: '0 이상의 숫자를 입력해 주세요.' },
       { status: 400 },
     );
-  const rows = await db()
-    .prepare(
-      'SELECT record_date FROM records WHERE user_id = ? ORDER BY record_date',
-    )
-    .bind(auth.user.id)
-    .all<{ record_date: string }>();
-  if (rows.results.length >= 5)
-    return Response.json(
-      { error: '기록은 정확히 5일까지만 남길 수 있습니다.' },
-      { status: 409 },
+  try {
+    const rows = await selectRows<{ record_date: string }>('records', {
+      select: 'record_date',
+      user_id: `eq.${auth.user.id}`,
+      order: 'record_date.asc',
+    });
+    if (rows.length >= 5)
+      return Response.json(
+        { error: '기록은 정확히 5일까지만 남길 수 있습니다.' },
+        { status: 409 },
+      );
+    const last = rows.at(-1)?.record_date;
+    if (last && body.date <= last)
+      return Response.json(
+        {
+          error:
+            '앞선 기록보다 뒤 날짜를 입력해 주세요. 같은 날짜는 중복할 수 없습니다.',
+        },
+        { status: 409 },
+      );
+    const experiment = await firstRow<{ changed_at: string | null }>(
+      'experiments',
+      { select: 'changed_at', user_id: `eq.${auth.user.id}` },
     );
-  const last = rows.results.at(-1)?.record_date;
-  if (last && body.date <= last)
-    return Response.json(
-      {
-        error:
-          '앞선 기록보다 뒤 날짜를 입력해 주세요. 같은 날짜는 중복할 수 없습니다.',
-      },
-      { status: 409 },
-    );
-  const exp = await db()
-    .prepare('SELECT changed_at FROM experiments WHERE user_id = ?')
-    .bind(auth.user.id)
-    .first<{ changed_at: string | null }>();
-  if (rows.results.length >= 2 && !exp?.changed_at)
-    return Response.json(
-      { error: '3일차를 기록하기 전에 계획 규칙을 한 번 바꿔 주세요.' },
-      { status: 409 },
-    );
-  const now = new Date().toISOString();
-  await db()
-    .prepare(
-      'INSERT INTO records (id, user_id, record_date, value, note, phase, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .bind(
-      crypto.randomUUID(),
-      auth.user.id,
-      body.date,
+    if (rows.length >= 2 && !experiment?.changed_at)
+      return Response.json(
+        { error: '3일차를 기록하기 전에 계획 규칙을 한 번 바꿔 주세요.' },
+        { status: 409 },
+      );
+    const now = new Date().toISOString();
+    await insertRows('records', {
+      id: crypto.randomUUID(),
+      user_id: auth.user.id,
+      record_date: body.date,
       value,
-      body.note?.trim() ?? '',
-      rows.results.length < 2 ? '변경 전' : '변경 후',
-      now,
-      now,
-    )
-    .run();
-  return Response.json({ ok: true }, { status: 201 });
+      note: body.note?.trim() ?? '',
+      phase: rows.length < 2 ? '변경 전' : '변경 후',
+      created_at: now,
+      updated_at: now,
+    });
+    return Response.json({ ok: true }, { status: 201 });
+  } catch (error) {
+    return databaseErrorResponse(error);
+  }
 }

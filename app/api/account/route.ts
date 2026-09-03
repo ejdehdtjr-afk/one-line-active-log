@@ -1,5 +1,5 @@
 import { clearSessionCookie, requireApiUser } from '@/lib/auth';
-import { db } from '@/lib/database';
+import { databaseErrorResponse, deleteRows } from '@/lib/database';
 
 export async function DELETE(request: Request) {
   const auth = await requireApiUser();
@@ -12,17 +12,18 @@ export async function DELETE(request: Request) {
       { error: '확인란에 “계정 삭제”를 정확히 입력해 주세요.' },
       { status: 400 },
     );
-  await db().batch([
-    db()
-      .prepare('DELETE FROM legacy_records WHERE user_id=?')
-      .bind(auth.user.id),
-    db().prepare('DELETE FROM records WHERE user_id=?').bind(auth.user.id),
-    db().prepare('DELETE FROM experiments WHERE user_id=?').bind(auth.user.id),
-    db().prepare('DELETE FROM sessions WHERE user_id=?').bind(auth.user.id),
-    db().prepare('DELETE FROM users WHERE id=?').bind(auth.user.id),
-  ]);
-  return Response.json(
-    { ok: true },
-    { headers: { 'Set-Cookie': clearSessionCookie() } },
-  );
+  try {
+    const rows = await deleteRows('users', { id: `eq.${auth.user.id}` });
+    if (!rows.length)
+      return Response.json(
+        { error: '계정을 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    return Response.json(
+      { ok: true },
+      { headers: { 'Set-Cookie': clearSessionCookie() } },
+    );
+  } catch (error) {
+    return databaseErrorResponse(error);
+  }
 }
