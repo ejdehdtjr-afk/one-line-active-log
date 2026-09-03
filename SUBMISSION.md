@@ -2,12 +2,12 @@
 
 ## 제출 주소
 
-- 결과물: https://one-line-active-log.ejdehdtjr.chatgpt.site/
+- 결과물: https://one-line-active-log-next.vercel.app/
 - 공개 소스: https://github.com/ejdehdtjr-afk/one-line-active-log
 - 이어서 사용한 최종 T06 commit: `e1352d1a3c32824a074072b8d52cca0dcddbf2d7`
 - T06 commit 확인: https://github.com/ejdehdtjr-afk/one-line-active-log/commit/e1352d1a3c32824a074072b8d52cca0dcddbf2d7
 
-T07은 위 T06 commit을 직접 조상으로 둔다. 같은 저장소와 같은 Sites 결과물 주소를 이어서 사용했다. T06의 `daily-active-log-v2` 중 `source: user`인 실제 입력 기록만 로그인한 계정의 `legacy_records`로 옮기며, 합성 표본은 내 자료로 가장하지 않는다.
+T07은 위 T06 commit을 직접 조상으로 둔다. 같은 저장소의 T06 결과를 이어서 고쳤고 최종 결과는 Vercel에 배포했다. T06의 `daily-active-log-v2` 중 `source: user`인 실제 입력 기록만 로그인한 계정의 `legacy_records`로 옮기며, 합성 표본은 내 자료로 가장하지 않는다.
 
 ## 인증 구현 설명서
 

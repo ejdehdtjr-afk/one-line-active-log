@@ -2,7 +2,7 @@
 
 T06의 능동 작업시간 기록을 이어 받아, 계정별 인증과 5일 계획 규칙 실험을 구현한 T07 결과물입니다.
 
-- 결과물: https://one-line-active-log.ejdehdtjr.chatgpt.site/
+- 결과물: https://one-line-active-log-next.vercel.app/
 - [T07 제출문](./SUBMISSION.md)
 - [인증·권한 확인 기록](./SECURITY-TESTS.md)
 - 최종 T06 기준 commit: [`e1352d1`](https://github.com/ejdehdtjr-afk/one-line-active-log/commit/e1352d1a3c32824a074072b8d52cca0dcddbf2d7)
