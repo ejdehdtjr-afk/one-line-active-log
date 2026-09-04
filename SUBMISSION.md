@@ -3,7 +3,7 @@
 ## 제출 주소
 
 - 결과물: https://one-line-active-log-next.vercel.app/
-- 공개 소스(고정 commit): https://github.com/ejdehdtjr-afk/one-line-active-log/commit/338f524a4b02b7e719002aaca55b1f4184a66c5f
+- 공개 소스(검증 기록 포함 고정 commit): https://github.com/ejdehdtjr-afk/one-line-active-log/commit/57fd40582f5e95878d6efbccf2b843916549d663
 - 이어서 사용한 최종 T06 commit: `e1352d1a3c32824a074072b8d52cca0dcddbf2d7`
 - T06 commit 확인: https://github.com/ejdehdtjr-afk/one-line-active-log/commit/e1352d1a3c32824a074072b8d52cca0dcddbf2d7
 
