@@ -12,7 +12,7 @@ export function AuthForm() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError('');
@@ -33,9 +33,10 @@ export function AuthForm() {
   return (
     <>
       <form className="space-y-5" onSubmit={submit}>
-        <label className="block text-sm font-medium">
+        <label htmlFor="auth-email" className="block text-sm font-medium">
           이메일
           <Input
+            id="auth-email"
             required
             className="mt-2 h-12 rounded-xl px-4"
             type="email"
@@ -45,9 +46,10 @@ export function AuthForm() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
-        <label className="block text-sm font-medium">
+        <label htmlFor="auth-password" className="block text-sm font-medium">
           비밀번호
           <Input
+            id="auth-password"
             required
             minLength={8}
             maxLength={128}

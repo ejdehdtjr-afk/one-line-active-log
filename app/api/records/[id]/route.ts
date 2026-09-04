@@ -52,6 +52,16 @@ export async function DELETE(
   if ('response' in auth) return auth.response;
   const { id } = await params;
   try {
+    const owned = await firstRow<{ id: string }>('records', {
+      select: 'id',
+      id: `eq.${id}`,
+      user_id: `eq.${auth.user.id}`,
+    });
+    if (!owned)
+      return Response.json(
+        { error: '내 기록에서 찾을 수 없습니다.' },
+        { status: 404 },
+      );
     const latest = await firstRow<{ id: string }>('records', {
       select: 'id',
       user_id: `eq.${auth.user.id}`,

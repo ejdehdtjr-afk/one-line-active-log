@@ -220,7 +220,7 @@ export function Dashboard() {
     return true;
   }
 
-  async function addRecord(event: React.FormEvent) {
+  async function addRecord(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (
       await request('/api/records', {
@@ -242,7 +242,7 @@ export function Dashboard() {
       tag: '개인공부 관련 계획',
     });
   }
-  async function saveDiary(event: React.FormEvent) {
+  async function saveDiary(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const url = editingDiaryId ? `/api/diary/${editingDiaryId}` : '/api/diary';
     if (
@@ -266,7 +266,7 @@ export function Dashboard() {
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  async function changeRule(event: React.FormEvent) {
+  async function changeRule(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (
       await request('/api/experiment', {
@@ -436,9 +436,10 @@ export function Dashboard() {
                     )}
                   </div>
                   <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    <label className="text-sm font-medium">
+                    <label htmlFor="diary-date" className="text-sm font-medium">
                       날짜
                       <Input
+                        id="diary-date"
                         required
                         type="date"
                         max={todayInSeoul()}
@@ -452,9 +453,13 @@ export function Dashboard() {
                         }
                       />
                     </label>
-                    <label className="text-sm font-medium">
+                    <label
+                      htmlFor="diary-value"
+                      className="text-sm font-medium"
+                    >
                       능동 작업시간 (분)
                       <Input
+                        id="diary-value"
                         required
                         type="number"
                         min="1"
@@ -471,9 +476,10 @@ export function Dashboard() {
                         placeholder="예: 45"
                       />
                     </label>
-                    <label className="text-sm font-medium">
+                    <label htmlFor="diary-tag" className="text-sm font-medium">
                       계획 유형
                       <NativeSelect
+                        id="diary-tag"
                         className="mt-2 w-full [&_select]:h-11"
                         value={diaryForm.tag}
                         onChange={(event) =>
@@ -490,17 +496,25 @@ export function Dashboard() {
                         ))}
                       </NativeSelect>
                     </label>
-                    <label className="text-sm font-medium">
+                    <label
+                      htmlFor="diary-timezone"
+                      className="text-sm font-medium"
+                    >
                       기준 시간대
                       <Input
+                        id="diary-timezone"
                         className="mt-2 h-11"
                         value="Asia/Seoul"
                         disabled
                       />
                     </label>
-                    <label className="text-sm font-medium sm:col-span-2">
+                    <label
+                      htmlFor="diary-memo"
+                      className="text-sm font-medium sm:col-span-2"
+                    >
                       오늘 할 일 / 한 일
                       <Textarea
+                        id="diary-memo"
                         required
                         maxLength={120}
                         className="mt-2 min-h-20"
@@ -790,9 +804,10 @@ export function Dashboard() {
                   기존 규칙: {data.experiment.plan_before}
                 </p>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <label className="text-sm font-medium">
+                  <label htmlFor="plan-after" className="text-sm font-medium">
                     새 계획 규칙
                     <Input
+                      id="plan-after"
                       required
                       className="mt-2 h-11 bg-white"
                       value={afterRule}
@@ -800,9 +815,13 @@ export function Dashboard() {
                       placeholder="사람이 읽는 한 문장"
                     />
                   </label>
-                  <label className="text-sm font-medium">
+                  <label
+                    htmlFor="change-reason"
+                    className="text-sm font-medium"
+                  >
                     바꾼 이유
                     <Input
+                      id="change-reason"
                       required
                       className="mt-2 h-11 bg-white"
                       value={reason}
@@ -859,9 +878,13 @@ export function Dashboard() {
                     </label>
                   )}
                   <div className="mt-5 grid gap-4 sm:grid-cols-[180px_160px_1fr_auto]">
-                    <label className="text-xs text-slate-300">
+                    <label
+                      htmlFor="record-date"
+                      className="text-xs text-slate-300"
+                    >
                       실제 날짜
                       <Input
+                        id="record-date"
                         required
                         type="date"
                         className="mt-2 h-11 bg-white text-ink"
@@ -869,9 +892,13 @@ export function Dashboard() {
                         onChange={(e) => setDate(e.target.value)}
                       />
                     </label>
-                    <label className="text-xs text-slate-300">
+                    <label
+                      htmlFor="record-value"
+                      className="text-xs text-slate-300"
+                    >
                       {data.experiment.metric} ({data.experiment.unit})
                       <Input
+                        id="record-value"
                         required
                         type="number"
                         min="0"
@@ -881,9 +908,13 @@ export function Dashboard() {
                         onChange={(e) => setValue(e.target.value)}
                       />
                     </label>
-                    <label className="text-xs text-slate-300">
+                    <label
+                      htmlFor="record-note"
+                      className="text-xs text-slate-300"
+                    >
                       메모
                       <Textarea
+                        id="record-note"
                         className="mt-2 min-h-11 bg-white text-ink"
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
@@ -951,9 +982,13 @@ export function Dashboard() {
                   계정을 지우면 기록, 실험 설정, 로그인 세션이 모두 함께 영구
                   삭제됩니다.
                 </p>
-                <label className="mt-5 block text-sm font-medium">
+                <label
+                  htmlFor="delete-confirmation"
+                  className="mt-5 block text-sm font-medium"
+                >
                   확인을 위해 “계정 삭제” 입력
                   <Input
+                    id="delete-confirmation"
                     className="mt-2 bg-white"
                     value={confirmation}
                     onChange={(e) => setConfirmation(e.target.value)}
